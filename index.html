@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.5, user-scalable=yes">
+    <title>ASHK 古蹟闖關 · 地圖遊覽遊戲</title>
+    <style>
+        /* ===== 手機豎屏適配套式，垂直居中 ===== */
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+            background: #1e2b3a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;  /* 垂直居中 */
+            padding: 8px;
+        }
+        .game-wrapper {
+            max-width: 500px;
+            width: 100%;
+            background: #f5f0e7;
+            border-radius: 30px 30px 20px 20px;
+            box-shadow: 0 20px 30px rgba(0, 0, 0, 0.5);
+            overflow: hidden;
+            position: relative;
+            margin: 0 auto;
+        }
+        .panel {
+            padding: 20px 16px 24px;
+            transition: opacity 0.3s ease;
+        }
+        .hidden {
+            display: none !important;
+        }
+
+        /* ---------- 開屏 ---------- */
+        .splash {
+            text-align: center;
+            background: #d9c5b3;
+        }
+        .splash-img {
+            width: 100%;
+            max-width: 400px;
+            margin: 15px auto;
+            border-radius: 28px;
+            box-shadow: 0 12px 24px rgba(0,0,0,0.2);
+            display: block;
+        }
+        .btn-start {
+            background: #b22222;
+            color: white;
+            border: none;
+            font-size: 1.4rem;      /* 縮小字體 */
+            font-weight: bold;
+            padding: 10px 20px;      /* 縮小按鈕 */
+            border-radius: 40px;
+            margin: 15px 0 12px;
+            letter-spacing: 1px;
+            cursor: pointer;
+            box-shadow: 0 5px 0 #6b0f0f;
+            transition: 0.1s linear;
+            border: 2px solid #ffcf9a;
+            width: auto;              /* 改為自動寬度 */
+            min-width: 260px;         /* 最小寬度保證不換行 */
+            max-width: 90%;
+            white-space: nowrap;      /* 強制一行 */
+            display: inline-block;    /* 讓寬度根據內容 */
+        }
+        .btn-start:active {
+            transform: translateY(5px);
+            box-shadow: 0 2px 0 #6b0f0f;
+        }
+
+        /* ---------- 遊戲主介面 (地圖) ---------- */
+        .game-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #a1806b;
+            padding: 8px 16px;
+            border-radius: 40px;
+            color: #fff5e6;
+            margin-bottom: 15px;
+            font-weight: bold;
+            font-size: 1.2rem;
+            border: 2px solid #5e3e2b;
+        }
+        .score-box {
+            background: #2c4c3b;
+            padding: 5px 20px;
+            border-radius: 30px;
+            box-shadow: inset 0 -3px 0 #1d3227;
+            font-size: 1.6rem;
+        }
+
+        /* 地圖容器 */
+        .map-container {
+            position: relative;
+            width: 100%;
+            margin: 0 auto;
+            border: 4px solid #7c5d48;
+            border-radius: 24px;
+            overflow: hidden;
+            background: #3a2c22;
+        }
+        .map-bg {
+            display: block;
+            width: 100%;
+            height: auto;
+            pointer-events: none;
+            border-radius: 20px;
+        }
+
+        /* 六個關卡圖示 */
+        .level-dot {
+            position: absolute;
+            width: 13%;
+            aspect-ratio: 1/1;
+            max-width: 65px;
+            min-width: 40px;
+            background: #e9b13b;
+            border: 4px solid #faeac9;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            font-weight: 800;
+            color: #2c1e12;
+            text-shadow: 2px 2px 0 #ffd78c;
+            box-shadow: 0 6px 0 #9e701c, 0 8px 12px rgba(0,0,0,0.3);
+            cursor: pointer;
+            transition: 0.08s linear;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+        }
+        .level-dot:active {
+            transform: translate(-50%, -40%);
+            box-shadow: 0 2px 0 #9e701c, 0 8px 12px rgba(0,0,0,0.3);
+        }
+        .level-dot.completed {
+            background: #2b8250;
+            border-color: #c5ffb0;
+            color: white;
+            text-shadow: none;
+            box-shadow: 0 6px 0 #124d2a;
+            cursor: default;
+            opacity: 0.9;
+        }
+        .level-dot.completed:active {
+            transform: translate(-50%, -50%);
+            box-shadow: 0 6px 0 #124d2a;
+        }
+        .level-dot.locked {
+            background: #7a6a5a;
+            border-color: #4a3f35;
+            box-shadow: 0 6px 0 #4a3f35;
+            color: #ddd;
+            text-shadow: none;
+            cursor: not-allowed;
+            opacity: 0.6;
+            pointer-events: none;
+        }
+        .level-dot.locked:active {
+            transform: translate(-50%, -50%);
+            box-shadow: 0 6px 0 #4a3f35;
+        }
+        .level-dot span {
+            margin-top: -4px;
+        }
+
+        /* ---------- 模態框 (答題) ---------- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(3px);
+            padding: 10px;
+        }
+        .modal-card {
+            background: #fcf5e8;
+            width: 100%;
+            max-width: 480px;
+            max-height: 90vh;
+            overflow-y: auto;
+            border-radius: 36px;
+            padding: 24px 20px;
+            box-shadow: 0 30px 40px #00000055;
+            border: 5px solid #b67b4b;
+            position: relative;
+        }
+        .close-btn {
+            position: absolute;
+            top: 15px; right: 20px;
+            background: #a14242;
+            color: white;
+            border: none;
+            font-size: 26px;
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            cursor: pointer;
+            line-height: 44px;
+            text-align: center;
+            font-weight: bold;
+            box-shadow: 0 4px 0 #5e2a2a;
+        }
+        .close-btn:active {
+            transform: translateY(4px);
+            box-shadow: none;
+        }
+        .modal-title {
+            font-size: 1.8rem;
+            color: #472e1b;
+            border-bottom: 3px solid #c9a77b;
+            padding-bottom: 10px;
+            margin-right: 40px;
+        }
+        .modal-desc {
+            background: #e8d9c6;
+            padding: 15px;
+            border-radius: 24px;
+            margin: 15px 0;
+            font-size: 1rem;
+            line-height: 1.5;
+            white-space: pre-line;
+        }
+        .modal-question {
+            font-size: 1.3rem;
+            font-weight: 600;
+            color: #2d4b65;
+            margin: 15px 0 8px;
+        }
+        .options-group {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            margin: 15px 0;
+        }
+        .option-item {
+            background: #e3d5c0;
+            border: 3px solid #b68f66;
+            border-radius: 40px;
+            padding: 12px 16px;
+            font-size: 1.1rem;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            cursor: pointer;
+            transition: 0.1s;
+        }
+        .option-item.selected {
+            background: #bdd6b5;
+            border-color: #1f7840;
+            box-shadow: 0 0 0 3px #a7d0a7;
+        }
+        input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            accent-color: #b14e4e;
+            transform: scale(1.1);
+            margin-left: 6px;
+        }
+        .btn-submit {
+            background: #2d5f7c;
+            border: none;
+            font-size: 1.8rem;
+            font-weight: bold;
+            color: white;
+            padding: 14px 20px;
+            border-radius: 50px;
+            width: 100%;
+            letter-spacing: 2px;
+            cursor: pointer;
+            box-shadow: 0 6px 0 #163845;
+            margin: 15px 0 0;
+            border: 2px solid #cde3ff;
+        }
+        .btn-submit:active {
+            transform: translateY(5px);
+            box-shadow: 0 2px 0 #163845;
+        }
+        .feedback-msg {
+            min-height: 36px;
+            font-weight: bold;
+            font-size: 1.1rem;
+            margin-top: 12px;
+            text-align: center;
+        }
+
+        /* ---------- 最終勳章頁 (無認證祝福) ---------- */
+        .final-panel {
+            text-align: center;
+            background: #e4cfb5;
+            padding: 20px 15px 40px;
+        }
+        .badge-img {
+            width: 80%;
+            max-width: 350px;
+            border-radius: 60px;
+            margin: 20px auto;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 8px solid #fbdba8;
+            box-shadow: 0 20px 30px #00000055;
+        }
+        .badge-img:hover {
+            transform: scale(1.02);
+        }
+        .click-hint {
+            font-size: 1.8rem;
+            color: #744f2b;
+            background: #ffefc0;
+            display: inline-block;
+            padding: 8px 30px;
+            border-radius: 50px;
+            margin-top: 15px;
+        }
+        .instagram-link {
+            text-decoration: none;
+            color: inherit;
+        }
+        .reset-link {
+            margin-top: 30px;
+            color: #2a4871;
+            text-decoration: underline;
+            cursor: pointer;
+            font-size: 1.1rem;
+        }
+    </style>
+</head>
+<body>
+<div class="game-wrapper" id="gameWrapper">
+
+    <!-- 開屏 splash (新圖片) -->
+    <div id="splashPanel" class="panel splash">
+        <img src="https://cdn.phototourl.com/uploads/2026-03-05-9839806c-6b80-4811-90e7-b65b35776789.png" alt="開屏圖: ASHK Heritage" class="splash-img" style="max-width: 100%; height: auto; object-fit: contain;">
+        <button class="btn-start" id="startBtn">Let's Start! 開始探索！</button>
+        <div style="color: #4b3020; font-size: 1.1rem;">Click on to begin · 點擊開始進入地圖闖關</div>
+    </div>
+
+    <!-- 遊戲主介面 (地圖) 新背景 -->
+    <div id="gamePanel" class="panel hidden">
+        <div class="game-header">
+            <span>Heritage Challenge · 古蹟挑戰</span>
+            <div class="score-box" id="scoreDisplay">0/6</div>
+        </div>
+        <div class="map-container" id="mapContainer">
+            <!-- 新地圖背景 -->
+            <img src="https://cdn.phototourl.com/uploads/2026-03-05-40c399f3-8c32-4e32-a92a-51aacd665ed4.png" alt="Heritage Challenge Map" class="map-bg" style="width:100%; height:auto; display:block;">
+            <!-- 六個關卡圖示 (百分比保持不變) -->
+            <div class="level-dot" id="level1" style="left: 64%; top: 50%;"><span>1</span></div>
+            <div class="level-dot" id="level2" style="left: 52%; top: 68%;"><span>2</span></div>
+            <div class="level-dot" id="level3" style="left: 42%; top: 48%;"><span>3</span></div>
+            <div class="level-dot" id="level4" style="left: 32%; top: 68%;"><span>4</span></div>
+            <div class="level-dot" id="level5" style="left: 20%; top: 66%;"><span>5</span></div>
+            <div class="level-dot" id="level6" style="left: 20%; top: 20%;"><span>6</span></div>
+        </div>
+        <!-- 無提示文字 -->
+    </div>
+
+    <!-- 最終勳章頁 (新圖片、新提示、無認證標題) -->
+    <div id="finalPanel" class="panel final-panel hidden">
+        <!-- 認證祝福已刪除 -->
+        <a href="https://www.instagram.com/asiasocietyhk/" target="_blank" class="instagram-link">
+            <img src="https://cdn.phototourl.com/uploads/2026-03-05-59d7d96e-ff52-4dab-a0a3-dec12857155e.png" alt="ASHK Heritage Expert Badge" class="badge-img">
+        </a>
+        <div class="click-hint">Click on your badge · 點擊您的勛章</div>
+        <div style="margin-top: 25px;">You completed all levels! · 你完成了所有關卡！</div>
+        <div class="reset-link" id="resetFromFinal">Restart · 重新開始</div>
+    </div>
+
+    <!-- 模態框 (答題) -->
+    <div id="quizModal" class="modal-overlay hidden">
+        <div class="modal-card">
+            <button class="close-btn" id="closeModalBtn">✕</button>
+            <div class="modal-title" id="modalTitle">第一關</div>
+            <div class="modal-desc" id="modalDesc">載入簡介...</div>
+            <div class="modal-question" id="modalQuestion">問題</div>
+            <div class="options-group" id="optionsContainer"></div>
+            <button class="btn-submit" id="submitAnswerBtn">Submit · 提交答案</button>
+            <div class="feedback-msg" id="feedbackMsg"></div>
+        </div>
+    </div>
+</div>
+
+<script>
+    (function() {
+        // 關卡資料 (第二關和第五關已更新)
+        const levels = [
+            {
+                name: "第一關：Noble Water Feature 來寶水之源",
+                desc: "The site is home to one of the key nullahs in Hong Kong. The water feature echoes the nullah and flows from roof to foor.\n\n會址與香港其中一條引水道相鄰，來寶水之源流水從天台流至地下，設計與引水道互相呼應。",
+                question: "What is the design concept of Noble Water Feature?\n來寶水之源的設計理念是什麽?",
+                options: [
+                    { en: "Block out the sound of city", zh: "隔離城市的噪音" },
+                    { en: "Aquaculture", zh: "水產養殖" },
+                    { en: "Aesthetic purposes", zh: "美觀" }
+                ],
+                correct: 0
+            },
+            {
+                name: "第二關：Fruit Bat Bridge 果蝠橋",
+                desc: "In the re-adaptation process, two historical trees and four precious Chinese Fan-palm trees were discovered. To conserve the habitats of the animals, the linear design of footbridge turned into a bent shape.\n\n於活化過程中，我們發現了兩棵古樹及四棵珍貴的蒲葵樹。為保動物棲息地，天橋設計由直線改為臂彎形。",
+                question: "Which kind of animals eat the fruits of Chinese Fan-palm trees?\n蒲葵樹的果實是哪一種動物的食物呢?",
+                options: [
+                    { en: "Lions", zh: "獅子" },
+                    { en: "Lucas' short-nosed fruit bat", zh: "短鼻果蝠" },
+                    { en: "Monkeys", zh: "猴子" }
+                ],
+                correct: 1
+            },
+            {
+                name: "第三關：Old Lab 軍火庫古蹟群",
+                desc: "This Starr-Greenberg Building was built around 1865 and was once a laboratory used for mixing and packaging explosives.\n\n這座史帶-格林伯格樓大約於1865年興建，為一所重火工場，用作混合和包裝炸藥。",
+                question: "Which material is this laboratory made of?\n軍火庫是用什麽物料建成的?",
+                options: [
+                    { en: "Granite", zh: "花崗岩" },
+                    { en: "Brick", zh: "磚頭" },
+                    { en: "Steel", zh: "鋼" }
+                ],
+                correct: 0
+            },
+            {
+                name: "第四關：Munitions track 劉鳴偉火藥軌",
+                desc: "The Ming Wai Lau Munitions Track was used for transportation of ammunition in the late 19th Century with an aerial rope system. Remains of the original track have been preserved in situ.\n\n劉鳴偉火藥軌於十九世紀時用作運送火藥，並連接著架空繩道。火藥運輸軌道的原貌獲保存在原來位置。",
+                question: "Where would the explosives be transported via the munitions track?\n火藥會經架空軌道運至哪裡?",
+                options: [
+                    { en: "Home of military personnel", zh: "軍人家中" },
+                    { en: "The Hong Kong Observation Wheel", zh: "香港摩天輪" },
+                    { en: "Arsenal Street of Wan Chai", zh: "灣仔軍器廠街" }
+                ],
+                correct: 2
+            },
+            {
+                name: "第五關：Chantal Miller Gallery 麥禮賢大人藝術館",
+                desc: "This structure was used to store explosives and designed to contain accidental explosions. With original features retained, it is now adapted as a modern exhibition space with international-standard facilities.\n\n這個前軍火庫備有控制意外爆炸的設計。經過修葺及巧妙的活化工程後，保留原有特色，現為達國際水平的現代展覽場地。",
+                question: "What temperature do we have to keep in the Chantal Miller Gallery?\n麥禮賢大人藝術館內溫度需要保持在多少度?",
+                options: [
+                    { en: "-4°C", zh: "-4°C" },
+                    { en: "22°C", zh: "22°C" },
+                    { en: "40°C", zh: "40°C" }
+                ],
+                correct: 1
+            },
+            {
+                name: "第六關：Miller Theater 麥禮賢劇場",
+                desc: "Built between 1905 and 1907, this Grade I historic building has now been transformed into a theater equipped with professional-grade theatrical facilities. Surrounding the Miller Theater is a barrel vaulted lighting passage, which provide a safe route for military personnel to check the explosives.\n\n於1905至1907年建成，軍火庫B舊址獲列作一級史建築；現活化成一個配備高質素視聽器材的專業劇場。環繞著麥禮賢劇場的是一條拱型天花長廊，原為提供一條安全的照明通道，以便軍人檢查軍火。",
+                question: "Why did the soldiers design the roof in an arched shape?\n為什麼軍人把天花設計成拱形?",
+                options: [
+                    { en: "Can store more explosives", zh: "能夠儲存更多火藥" },
+                    { en: "Better ventilation", zh: "通風更佳" },
+                    { en: "Reduce the damage to soldiers if explosion", zh: "降低發生爆炸時對軍人造成的損傷" }
+                ],
+                correct: 2
+            }
+        ];
+
+        let currentScore = 0;
+        const completed = [false, false, false, false, false, false];
+        let currentLevelIndex = 0;
+
+        const splash = document.getElementById('splashPanel');
+        const gamePanel = document.getElementById('gamePanel');
+        const finalPanel = document.getElementById('finalPanel');
+        const startBtn = document.getElementById('startBtn');
+        const scoreSpan = document.getElementById('scoreDisplay');
+        const levelDots = [
+            document.getElementById('level1'),
+            document.getElementById('level2'),
+            document.getElementById('level3'),
+            document.getElementById('level4'),
+            document.getElementById('level5'),
+            document.getElementById('level6')
+        ];
+        const modal = document.getElementById('quizModal');
+        const closeModalBtn = document.getElementById('closeModalBtn');
+        const modalTitle = document.getElementById('modalTitle');
+        const modalDesc = document.getElementById('modalDesc');
+        const modalQuestion = document.getElementById('modalQuestion');
+        const optionsContainer = document.getElementById('optionsContainer');
+        const submitBtn = document.getElementById('submitAnswerBtn');
+        const feedback = document.getElementById('feedbackMsg');
+        const resetFinal = document.getElementById('resetFromFinal');
+
+        function updateLocks() {
+            for (let i = 0; i < levelDots.length; i++) {
+                const dot = levelDots[i];
+                dot.classList.remove('locked', 'completed');
+                if (completed[i]) {
+                    dot.classList.add('completed');
+                } else {
+                    if (i === 0 || completed[i-1]) {
+                        dot.classList.remove('locked');
+                    } else {
+                        dot.classList.add('locked');
+                    }
+                }
+            }
+        }
+
+        function updateScoreDisplay() {
+            scoreSpan.innerText = `${currentScore}/${levels.length}`;
+        }
+
+        function checkComplete() {
+            if (currentScore === levels.length) {
+                gamePanel.classList.add('hidden');
+                finalPanel.classList.remove('hidden');
+            }
+        }
+
+        function completeLevel(index) {
+            if (completed[index]) return;
+            completed[index] = true;
+            currentScore++;
+            updateLocks();
+            updateScoreDisplay();
+            checkComplete();
+        }
+
+        function resetGame() {
+            currentScore = 0;
+            for (let i = 0; i < completed.length; i++) {
+                completed[i] = false;
+            }
+            updateLocks();
+            updateScoreDisplay();
+            splash.classList.remove('hidden');
+            gamePanel.classList.add('hidden');
+            finalPanel.classList.add('hidden');
+            modal.classList.add('hidden');
+        }
+
+        function renderModal(levelIdx) {
+            const lvl = levels[levelIdx];
+            modalTitle.innerText = lvl.name;
+            modalDesc.innerText = lvl.desc;
+            modalQuestion.innerText = lvl.question;
+
+            let htmlStr = '';
+            lvl.options.forEach((opt, idx) => {
+                htmlStr += `
+                    <label class="option-item" data-opt="${idx}">
+                        <input type="radio" name="quizOption" value="${idx}" ${idx === 0 ? 'checked' : ''}>
+                        <span>${String.fromCharCode(65 + idx)}. ${opt.en} / ${opt.zh}</span>
+                    </label>
+                `;
+            });
+            optionsContainer.innerHTML = htmlStr;
+            feedback.innerText = '';
+        }
+
+        function openModal(levelIdx) {
+            if (completed[levelIdx]) {
+                alert('You have already completed this level! · 這一關你已經完成了！');
+                return;
+            }
+            if (levelIdx !== 0 && !completed[levelIdx-1]) {
+                alert('Please complete the previous level first! · 請先完成前一關！');
+                return;
+            }
+            currentLevelIndex = levelIdx;
+            renderModal(levelIdx);
+            modal.classList.remove('hidden');
+        }
+
+        function closeModal() {
+            modal.classList.add('hidden');
+        }
+
+        function handleSubmit() {
+            if (completed[currentLevelIndex]) {
+                feedback.innerText = 'This level is already completed. · 此關卡已完成，不能重複作答';
+                return;
+            }
+            if (currentLevelIndex !== 0 && !completed[currentLevelIndex-1]) {
+                feedback.innerText = 'Please complete the previous level first! · 請先完成前一關！';
+                setTimeout(closeModal, 1500);
+                return;
+            }
+
+            const selected = document.querySelector('input[name="quizOption"]:checked');
+            if (!selected) {
+                feedback.innerText = 'Please select an option · 請選擇一個選項';
+                return;
+            }
+            const answer = parseInt(selected.value, 10);
+            const correct = levels[currentLevelIndex].correct;
+
+            if (answer === correct) {
+                feedback.innerText = 'Correct! +1 point · 完全正確！ +1 積分';
+                completeLevel(currentLevelIndex);
+                setTimeout(() => {
+                    closeModal();
+                }, 800);
+            } else {
+                feedback.innerText = 'Wrong answer, try again · 答案錯誤，再試一次';
+            }
+        }
+
+        levelDots.forEach((dot, idx) => {
+            dot.addEventListener('click', (e) => {
+                e.stopPropagation();
+                openModal(idx);
+            });
+        });
+
+        startBtn.addEventListener('click', () => {
+            splash.classList.add('hidden');
+            gamePanel.classList.remove('hidden');
+            finalPanel.classList.add('hidden');
+            updateLocks();
+        });
+
+        closeModalBtn.addEventListener('click', closeModal);
+        modal.addEventListener('click', (e) => {
+            if (e.target === modal) closeModal();
+        });
+
+        submitBtn.addEventListener('click', handleSubmit);
+        resetFinal.addEventListener('click', resetGame);
+
+        updateLocks();
+        updateScoreDisplay();
+    })();
+</script>
+
+<!-- 圖片來源 (已全部更新為新連結)：
+     1. 開屏圖片：https://cdn.phototourl.com/uploads/2026-03-05-9839806c-6b80-4811-90e7-b65b35776789.png
+     2. 地圖背景：https://cdn.phototourl.com/uploads/2026-03-05-40c399f3-8c32-4e32-a92a-51aacd665ed4.png
+     3. 勳章圖片：https://cdn.phototourl.com/uploads/2026-03-05-59d7d96e-ff52-4dab-a0a3-dec12857155e.png
+     按鈕位置百分比保持不變。 -->
+</body>
+</html>
